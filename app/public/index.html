@@ -1,0 +1,72 @@
+<html>
+  <script>
+    // 选出股票后，注意K线形态，高位（多头排列形态）上引线长不能买（不管涨跌），高位有大阴线不买
+    // 题材要好，行业细分龙头
+    // 不能是大盘股（200亿以下）
+
+    const SCLICE_SIZE = 10;
+
+    async function getJSON(start, end) {
+      let url = `http://127.0.0.1:7001/strategy/haha?start=${start}&end=${end}`;
+      if (!end) {
+        // 用于测试
+        url = `http://127.0.0.1:7001/strategy/haha?code=${start}`;
+      }
+      try {
+        let response = await fetch(url);
+        return await response.text();
+      } catch (error) {
+        console.log('Request Failed', error);
+      }
+    }
+
+    async function run() {
+      // let g = []
+      // for (let i = 0; i < 4615 ;i++) {
+      //   g.push(i)
+      // }
+      let firedragonList = []
+      let volumeList = []
+      let errorList = []
+      // 总股票数： 4616, i = 4615
+      for (let i = 12; i >= 0 ;i-=SCLICE_SIZE) {
+        try {
+          const data = JSON.parse(await getJSON(i-SCLICE_SIZE >= 0 ? (i-SCLICE_SIZE) : 0, i))
+          for (let j = 0; j < data.length; j++) {
+            if (data[j].strategy === 'firedragon') {
+              firedragonList.push(data[j]);
+            } else if (data[j].strategy === 'volume') {
+              volumeList.push(data[j]);
+            } else if (data[j].strategy === 'error') {
+              errorList.push(data[j]);
+            }
+          }
+          console.warn('Work work ...', new Date());
+          await new Promise((resolve) => {
+            setTimeout(() => {
+              resolve()
+            }, 500)
+          })
+        } catch(e) {
+          console.warn('error', e);
+        }
+      }
+      console.warn('firedragonList:');
+      console.warn(firedragonList);
+      console.warn('Volume list');
+      console.warn(volumeList.sort((a, b) => b.sort - a.sort));
+      console.warn('errorList:');
+      console.warn(errorList);
+      console.warn('Done, my lord!');
+    }
+
+    async function test() {
+      const data = await getJSON('002685')
+      console.warn('Done, my lord!', data);
+    }
+
+    test()
+    // run()
+    
+  </script>
+</html>
