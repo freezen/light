@@ -2,6 +2,7 @@ const { Service } = require('egg');
 const dayjs = require('dayjs');
 const axios = require('axios').default;
 
+const TIMEOUT_LIMIT = 2 * 1000
 const targetUrl = 'http://127.0.0.1:9090';
 
 const HttpsProxyAgent = require('https-proxy-agent');
@@ -34,7 +35,7 @@ const getTimeFormat = (t) => {
   return parseInt(t / 1000);
 };
 
-class RobotVolume extends Service {
+class GetCloudData extends Service {
   async query(stockId, beg, end) {
     const { ctx } = this;
     // eslint-disable-next-line no-unused-vars
@@ -69,7 +70,7 @@ class RobotVolume extends Service {
       res = await axios.get(url, {
         headers: mockHeaders,
         httpsAgent: agent,
-        timeout: 7000
+        timeout: TIMEOUT_LIMIT
       });
 
       // {
@@ -96,7 +97,7 @@ class RobotVolume extends Service {
           mydate: dayjs.unix(timestamp[i]).format('YYYY-MM-DD HH:mm:ss')
         }
 
-        ctx.service.dailydata.insert(item)
+        ctx.service.getDBData.insert(item)
 
         list.push(item)
       }
@@ -107,6 +108,7 @@ class RobotVolume extends Service {
       const item = {
         name: '0',
         url,
+        msg: JSON.stringify(e.msg),
         price: 0,
         close: 0,
         open: 0,
@@ -123,4 +125,4 @@ class RobotVolume extends Service {
     return list;
   }
 }
-module.exports = RobotVolume;
+module.exports = GetCloudData;

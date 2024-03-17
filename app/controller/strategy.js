@@ -1,8 +1,16 @@
-// lsof -i :7001
 
 const { Controller } = require("egg");
 
 const { ORIGIN_DATA } = require("../utils/sourceData");
+
+const MODE_ENUM = {
+  VALIDATE: 'validate', // 策略回归，走数据库历史数据
+  DISCOVERY: 'discovery', // 探索请求模式，均请求新数据
+  MIX: 'mix', // 混合模式, 无历史数据则请求数据
+}
+const DAY_NUMBER = 13; // 13表示策略标准值， 250 * 11 表示 11年前，可以积累历史数据到数据库里
+const RETRY_LIMIT = 3;
+const MODE = MODE_ENUM.VALIDATE
 
 const STOCKS = ORIGIN_DATA.map((item) => {
   return {
@@ -24,8 +32,6 @@ const isDealingTime = () => {
   return dayOfWeek !== 0 && dayOfWeek !== 6 && now < threePM;
 }
 
-const DAY_NUMBER = 13;
-
 class StrategyController extends Controller {
   async index() {
     const { ctx } = this;
@@ -37,6 +43,7 @@ class StrategyController extends Controller {
     if (code) {
       codes = STOCKS.filter((item) => item.code === code);
     }
+    let retryCount = 0;
     for (let i = 0; i < codes.length; i++) {
       // 雅虎数据时间 range 是算实时价格的，也就是说如果在开盘时间进行量化计算，则最后一个价格是当天当前实时价格
       const endTime = new Date()
@@ -44,11 +51,13 @@ class StrategyController extends Controller {
         const offsetZone = endTime.getTimezoneOffset() / 60;
         endTime.setHours(6 + offsetZone + 8, 0, 0, 0)
       }
-      const r = await ctx.service.volume.query(
+      const r = await ctx.service.dataLoader.load(
         codes[i].code,
         endTime.getTime() - 24 * 60 * 60 * 1000 * DAY_NUMBER,
-        endTime.getTime()
+        endTime.getTime(),
+        MODE
       );
+
       // {
       //   name: '1',
       //   price: '1',
@@ -181,23 +190,41 @@ class StrategyController extends Controller {
 
 
       // 错误排查
+      let hadError = false
       for (let j = 0; j < r.length; j++) {
         if (r[j].name === '0') {
+          hadError = codes[i].code
+        }
+      }
+
+      let intervalTime = 200
+      if (hadError) {
+        if (retryCount >= RETRY_LIMIT) {
+          retryCount = 0
+          intervalTime = 200
           list.push({
             name: codes[i].name,
             url: r[r.length - 1].url,
             code: codes[i].code,
+            msg: codes[i].msg,
             strategy: "error",
           });
+        } else {
+          retryCount++
+          intervalTime = 500
+          i--
         }
+      } else {
+        retryCount = 0
+        intervalTime = 200
       }
       await new Promise((r) => {
         setTimeout(() => {
           r();
-        }, 200);
+        }, intervalTime);
       });
+      
     }
-
     ctx.body = list;
   }
 }

@@ -28,8 +28,8 @@
       let firedragonList = []
       let volumeList = []
       let errorList = []
-      // 总股票数： 4616, i = 4615
-      for (let i = 12; i >= 0 ;i-=SCLICE_SIZE) {
+      // 总股票数： 3795, i = 3795
+      for (let i = 3795; i >= 0 ;i-=SCLICE_SIZE) {
         try {
           const data = JSON.parse(await getJSON(i-SCLICE_SIZE >= 0 ? (i-SCLICE_SIZE) : 0, i))
           for (let j = 0; j < data.length; j++) {
